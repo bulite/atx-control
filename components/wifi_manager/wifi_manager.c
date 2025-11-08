@@ -2,12 +2,11 @@
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "nvs_flash.h"
-#include "esp_log.h"
+#include "common.h"
 
 static const char *TAG = "wifi_manager";
 static bool s_wifi_connected = false;
 static char s_ip_addr[16] = {0};
-
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         esp_wifi_connect();
@@ -32,6 +31,22 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
     }
 }
 
+static char* wifi_state_callback(void) {
+    char* buffer = malloc(256);
+    if (!buffer) {
+        return NULL;
+    }
+
+    snprintf(buffer, 256,
+        "  \"WiFi状态\": \"%s\",\n"
+        "  \"IP地址\": \"%s\"",
+        s_wifi_connected ? "已连接" : "未连接",
+        s_ip_addr
+    );
+
+    return buffer;
+}
+
 esp_err_t wifi_manager_init(void) {
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -47,9 +62,19 @@ esp_err_t wifi_manager_init(void) {
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL, NULL));
-
+    // 替换事件注册代码
+esp_event_handler_instance_t instance_any_id;
+esp_event_handler_instance_t instance_got_ip;
+ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
+                                                    ESP_EVENT_ANY_ID,
+                                                    &wifi_event_handler,
+                                                    NULL,
+                                                    &instance_any_id));
+ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
+                                                    IP_EVENT_STA_GOT_IP,
+                                                    &wifi_event_handler,
+                                                    NULL,
+                                                    &instance_got_ip));
     wifi_config_t wifi_config = {
         .sta = {
             .ssid = "",
@@ -64,14 +89,8 @@ esp_err_t wifi_manager_init(void) {
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
+    /* Register callback */
+    ESP_ERROR_CHECK(common_register_state_callback(wifi_state_callback));
 
     return ESP_OK;
-}
-
-bool wifi_manager_is_connected(void) {
-    return s_wifi_connected;
-}
-
-char* wifi_manager_get_ip_addr(void) {
-    return s_ip_addr;
 }

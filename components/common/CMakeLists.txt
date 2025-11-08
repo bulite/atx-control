@@ -5,5 +5,5 @@ idf_component_register(
     # 头文件目录
     INCLUDE_DIRS "include"
     # 依赖的 ESP-IDF 组件
-    REQUIRES esp_timer freertos
+    PRIV_REQUIRES esp_timer freertos mbedtls http_server esp_http_server
 )

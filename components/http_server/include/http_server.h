@@ -6,8 +6,12 @@
 
 // Web配置
 #define HTTP_SERVER_PORT    80
-#define AUTH_USERNAME       "admin"
-#define AUTH_PASSWORD       "admin123"
+
+// 模块链接结构体
+typedef struct {
+    const char *name;
+    const char *url;
+} ModuleLink_t;
 
 // 路由注册结构体
 typedef struct {
@@ -17,12 +21,8 @@ typedef struct {
     void *user_ctx;
 } HttpRoute_t;
 
-// 状态回调函数类型（用于Web页面获取各模块状态）
-typedef char* (*HttpStateCallback_t)(void);
-
 esp_err_t http_server_init(void);
 esp_err_t http_server_register_routes(const HttpRoute_t *routes, size_t route_count);
-esp_err_t http_server_register_state_callback(HttpStateCallback_t callback);
-bool http_server_auth_verify(httpd_req_t *req);
+esp_err_t http_server_register_module_link(const char *name, const char *url);
 
 #endif // HTTP_SERVER_H
